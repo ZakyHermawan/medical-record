@@ -125,7 +125,7 @@ python mbc_node.py -i RS-4 -p 5014 -b bootstrap1.hospital.net -b bootstrap2.hosp
 
    * This confirms the network has detected the node's new port.
 
-8. Advanced Test 2: Bootstrap Failover & Chain Sync
+## 8. Advanced Test 2: Bootstrap Failover & Chain Sync
 This is the ultimate test of the network's High-Availability and Fork Resolution.
 
 1. Kill Two Nodes:
