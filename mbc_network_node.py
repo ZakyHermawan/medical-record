@@ -8,7 +8,7 @@ from flask import Flask, request, jsonify, render_template
 import requests
 from threading import Thread, Lock
 
-from mbc_blockchain import Blockchain # <-- Import new logic class
+from mbc_blockchain import Blockchain
 
 # --- Simulated DNS for Bootstrap Domains ---
 SIMULATED_DNS = {
@@ -305,7 +305,7 @@ class HospitalNode:
             if block['previous_hash'] != last_block['hash']:
                 print(f"[Fork] !! Validation Failed: Chain link broken at index {i}.")
                 return False
-                
+
             # Check PoW
             _hash = self.blockchain.hash_block(block)
             if _hash != block['hash'] or _hash[:self.blockchain.difficulty] != '0' * self.blockchain.difficulty:
