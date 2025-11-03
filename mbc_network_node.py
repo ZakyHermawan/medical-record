@@ -1,10 +1,8 @@
-# mbc_network_node.py
-
 import mbc_crypto as crypto
 import json
 import time
 from pathlib import Path
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, redirect, url_for
 import requests
 from threading import Thread, Lock
 
@@ -72,18 +70,26 @@ class HospitalNode:
 
     # --- Protocol 1: OOB Handshake ---
     def register_routes(self):
+        self.app.add_url_rule("/", "show_home_page", self.show_home_page, methods=["GET"])
+
         self.app.add_url_rule("/handshake", "handshake", self.handle_handshake, methods=["POST"])
         self.app.add_url_rule("/add_registry", "add_registry", self.handle_add_registry, methods=["POST"])
-        
+
         # Consensus Endpoints (PoW + PoA)
         self.app.add_url_rule("/validate_block", "validate_block", self.handle_validate_block, methods=["POST"])
         self.app.add_url_rule("/submit_signature", "submit_signature", self.handle_submit_signature, methods=["POST"])
         self.app.add_url_rule("/commit_block", "commit_block", self.handle_commit_block, methods=["POST"])
-        
+
         # External API
         self.app.add_url_rule("/chain", "get_chain", self.get_chain, methods=["GET"])
         self.app.add_url_rule("/peers", "get_peers", self.get_peers, methods=["GET"])
+
+        # add_record to handle both POST (from form) and JSON
         self.app.add_url_rule("/add_record", "add_record", self.handle_add_record, methods=["POST"])
+
+    def show_home_page(self):
+        """Renders the HTML form to add a new record."""
+        return render_template('index.html', node_id=self.node_id)
 
     def handle_handshake(self):
         """Receives a handshake from a new node."""
@@ -403,18 +409,37 @@ class HospitalNode:
         """
         API for a user to add a new medical record.
         This node will automatically become the proposer and start mining.
+        
+        This function is multi-purpose:
+        - It handles JSON requests (from curl, scripts, or other nodes)
+        - It handles Form-Data requests (from the new index.html web form)
         """
-        data = request.get_json()
-        patient = data.get('patient')
-        record_data = data.get('data')
-        
+
+        is_form_submission = False
+
+        if request.is_json:
+            # Handle API/JSON request
+            data = request.get_json()
+            patient = data.get('patient')
+            record_data = data.get('data')
+        else:
+            # Handle Web Form request
+            data = request.form
+            patient = data.get('patient')
+            record_data = data.get('data')
+            is_form_submission = True
+
         if not patient or not record_data:
-            return jsonify({"error": "'patient' and 'data' fields are required"}), 400
-        
+            error_msg = {"error": "'patient' and 'data' fields are required"}
+            if is_form_submission:
+                # TODO: Could render an error template
+                return jsonify(error_msg), 400
+            return jsonify(error_msg), 400
+
         # --- Check for timed-out proposals first ---
         with self.lock:
             self.blockchain.check_for_failed_proposal()
-            
+
         # Create transaction
         tx = {
             "timestamp": int(time.time()), 
@@ -422,33 +447,46 @@ class HospitalNode:
             "data": record_data,
             "node_id": self.node_id
         }
-        
+
         # Sign transaction
         signature = crypto.sign_json(self.private_key, tx)
-        
+
         full_tx = {"transaction": tx, "signature": signature.hex()}
-        
+
         # Add to own pending pool
         with self.lock:
             self.blockchain.pending_transactions.append(full_tx)
-        
+
         # --- Automatically start mining ---
         with self.lock:
             if not self.blockchain.pending_transactions:
-                return jsonify({"message": "No transactions to mine"}), 400 # Should not happen
+                # This should not happen, but good to check
+                msg = {"message": "No transactions to mine"}
+                return jsonify(msg), 400
+
             if self.blockchain.current_proposal:
                 print("[API] Consensus already in progress, tx added to pool.")
-                return jsonify({"message": "Consensus already in progress, tx added to pool"}), 409 # 409 Conflict
-                
+                msg = {"message": "Consensus already in progress, tx added to pool"}
+                if is_form_submission:
+                    # Redirect to chain, the tx will be mined eventually
+                    return redirect(url_for('get_chain'))
+                return jsonify(msg), 409 # 409 Conflict
+
             tx_to_mine = self.blockchain.pending_transactions[:] # Get a copy
             self.blockchain.pending_transactions.clear() # Clear the pool
-        
+
         print(f"\nAPI: /add_record triggered. Proposing block with {len(tx_to_mine)} transactions...")
         # Run PoW/PoA in a thread
         Thread(target=self.blockchain.propose_new_block, args=(tx_to_mine,)).start()
-        
-        return jsonify({"message": "Block proposal started"}), 202
-        
+
+        # --- Respond based on request type ---
+        if is_form_submission:
+            # Redirect user to the chain visualizer!
+            return redirect(url_for('get_chain'))
+        else:
+            # Return JSON for API calls
+            return jsonify({"message": "Block proposal started"}), 202
+
     def run(self):
         # --- Run connect_to_bootstrap *before* starting the server ---
         if self.bootstrap_domains:

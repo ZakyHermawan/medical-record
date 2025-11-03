@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Medical Record</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            padding: 2em;
+            background-color: #f4f7f6;
+            color: #333;
+            max-width: 800px;
+            margin: 2em auto;
+        }
+        h1, h2 { 
+            color: #005a9c;
+            border-bottom: 2px solid #ddd;
+            padding-bottom: 10px;
+        }
+        .container {
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 2em;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .form-group {
+            margin-bottom: 1.5em;
+        }
+        .form-group label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 0.5em;
+        }
+        .form-group input, .form-group textarea {
+            width: 95%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1em;
+        }
+        .btn {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        .nav-link {
+            display: inline-block;
+            margin-top: 2em;
+            font-size: 1.1em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Add New Medical Record</h1>
+        <p>This form will submit a new transaction. The node ({{ node_id }}) will then start mining a new block.</p>
+        
+        <form action="/add_record" method="POST">
+            <div class="form-group">
+                <label for="patient">Patient Name</label>
+                <input type="text" id="patient" name="patient" placeholder="e.g., Alice" required>
+            </div>
+            <div class="form-group">
+                <label for="data">Record Data</label>
+                <textarea id="data" name="data" rows="4" placeholder="e.g., High Fever, 102.5 F" required></textarea>
+            </div>
+            <button type="submit" class="btn">Create Record & Propose Block</button>
+        </form>
+
+        <a href="/chain" class="nav-link">View Blockchain Visualizer &rarr;</a>
+    </div>
+</body>
+</html>

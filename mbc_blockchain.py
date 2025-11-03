@@ -1,5 +1,3 @@
-# mbc_blockchain.py
-
 import mbc_crypto as crypto
 import hashlib
 import json
