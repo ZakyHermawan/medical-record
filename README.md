@@ -50,9 +50,9 @@ Result: A new folder named `certs` will be created in your project directory. Yo
 ## 4. Phase 2: Start the 5-Node Network
 This will launch 5 separate terminal windows, one for each hospital node.
 
-In your terminal, run the `run_simulation.py` script:
+In your terminal, run the `mbc_launcher.py` script:
 ```bash
-python run_simulation.py
+python mbc_launcher.py
 ```
 Expected Output:
 1. Your main terminal will print `--- Starting Node RS-1 on port 5001 ---, --- Starting Node RS-2 on port 5002 ---`, etc.
