@@ -1,13 +1,4 @@
 # mbc_node.py
-# This is the main node program for each hospital.
-# It implements:
-# 1. Blockchain logic from main.py (including Proof-of-Work).
-# 2. OOB Handshake Protocol (Slide 3).
-# 3. Peer Discovery Protocol (Slide 4, 5).
-# 4. Proof-of-Authority Consensus Protocol (Slide 12, 13).
-#
-# This version automatically starts mining on the node that receives
-# the /add_record API call.
 
 import mbc_crypto as crypto
 import hashlib
@@ -20,30 +11,27 @@ import requests
 import argparse
 from threading import Thread, Lock
 
-# --- NEW: Consensus Timeout (in seconds) ---
+# --- Consensus Timeout (in seconds) ---
 CONSENSUS_TIMEOUT = 30 # 30 seconds
 
-# --- NEW: Simulated DNS for Bootstrap Domains ---
-# This allows nodes to find bootstraps even if their port changes
-# (In a real system, this is a real DNS server)
+# --- Simulated DNS for Bootstrap Domains ---
 SIMULATED_DNS = {
     "bootstrap1.hospital.net": "http://127.0.0.1:5001",
     "bootstrap2.hospital.net": "http://127.0.0.1:5002"
 }
 
-# --- Blockchain Logic (Adapted from main.py) ---
+# --- Blockchain Logic ---
 
 class Blockchain:
     def __init__(self, node):
-        self.node = node # Reference back to the node for info (ID, peers)
+        self.node = node 
         self.chain = []
         self.pending_transactions = []
-        self.difficulty = 5 # Taken from main.py (5 zero digits)
-        
-        # Key is block hash, Value is a dict of signatures {node_id: signature}
+        self.difficulty = 5
+    
         self.consensus_signatures = {} 
         
-        # For the demo, store the block being proposed
+        # store the block being proposed
         self.current_proposal = {}
         
         # Create Genesis Block (as per Slide 11)
@@ -55,14 +43,13 @@ class Blockchain:
             'index': 0,
             'timestamp': 0,
             'transactions': [],
-            'patient': 'Claude Shannon', # Taken from main.py
-            'data': 'Genesis Block',     # Taken from main.py
+            'patient': 'Claude Shannon', 
+            'data': 'Genesis Block',     
             'previous_hash': '0' * 64,
             'proposer': 'CA',
             'nonce': 0,
-            'signatures': {} # Genesis is signed by CA (simulated)
+            'signatures': {} 
         }
-        # Hash Genesis (PoW is not needed for genesis)
         block['hash'] = self.hash_block(block)
         print("Genesis Block created.")
         self.chain.append(block)
@@ -72,11 +59,11 @@ class Blockchain:
         # Copy block, remove fields that aren't part of the PoW hash
         block_copy = block.copy()
         block_copy.pop('hash', None)
-        block_copy.pop('signatures', None) # <-- THE FIX IS HERE
+        block_copy.pop('signatures', None) 
         block_string = json.dumps(block_copy, sort_keys=True).encode('utf-8')
         return hashlib.sha256(block_string).hexdigest()
 
-    # --- NEW FUNCTION: Check for failed/timed-out proposals ---
+    # --- Check for failed/timed-out proposals ---
     def check_for_failed_proposal(self):
         """
         Checks if a block has been in consensus for too long.
@@ -84,13 +71,13 @@ class Blockchain:
         to the pending pool.
         """
         if not self.current_proposal:
-            return # Nothing to check
+            return 
 
         start_time = self.current_proposal.get('start_time', 0)
         elapsed = time.time() - start_time
 
         if elapsed > CONSENSUS_TIMEOUT:
-            # --- FIX: Get block from the proposal structure ---
+            # --- get block from the proposal structure ---
             block_hash = self.current_proposal.get('block', {}).get('hash', 'unknown')
             print(f"[Proposer] !! Consensus for block {block_hash[:10]}... has TIMED OUT after {elapsed:.0f}s.")
             
@@ -135,15 +122,15 @@ class Blockchain:
         
         proposed_block = {
             'index': len(self.chain),
-            'timestamp': int(time.time()), # <-- FIX: Use integer timestamp
+            'timestamp': int(time.time()), 
             'transactions': transactions,
-            'patient': patient_name, # As per Slide 10
+            'patient': patient_name, 
             'data': f"Medical Record for {patient_name} and others.",
             'previous_hash': last_block['hash'],
             'proposer': self.node.node_id
         }
         
-        # --- PoW Logic from main.py ---
+        # --- PoW Logic ---
         i = 0
         while True:
             proposed_block['nonce'] = i
@@ -158,10 +145,10 @@ class Blockchain:
                 print(f"[Proposer] PoW... (trying nonce {i})")
         # --- End of PoW Logic ---
         
-        # --- FIX: Store proposal start time *outside* the block ---
+        # --- Store proposal start time *outside* the block ---
         self.current_proposal = {
             'block': proposed_block,
-            'start_time': time.time() # <-- Store metadata separately
+            'start_time': time.time()
         }
         # --- END FIX ---
 
@@ -223,7 +210,7 @@ class Blockchain:
             node_id = tx.get('node_id')
             
             pub_key = self.node.peer_public_keys.get(node_id)
-            if not pub_key and node_id == self.node.node_id: # Check if tx is from self
+            if not pub_key and node_id == self.node.node_id: 
                  pub_key = self.node.private_key.public_key()
             
             if not pub_key:
@@ -237,7 +224,7 @@ class Blockchain:
 
         print(f"[Peer] PoW and Proposer Signature Validation SUCCESSFUL.")
         
-        # 5. Sign and Send Back (PoA - Slide 13)
+        # 5. Sign and Send Back (PoA)
         my_signature = crypto.sign_data(self.node.private_key, _hash)
         
         payload = {
@@ -251,7 +238,7 @@ class Blockchain:
         if proposer_address:
             print(f"[Peer] Sending PoA signature to {block['proposer']}.")
             try:
-                # --- MODIFICATION: Increased timeout ---
+                # --- Increased timeout ---
                 requests.post(f"{proposer_address}/submit_signature", json=payload, timeout=5)
             except requests.exceptions.RequestException as e:
                 print(f"[Peer] Failed to send signature to proposer: {e}")
@@ -292,24 +279,19 @@ class Blockchain:
         
         if current_sig_count >= required_signatures:
             print(f"[Proposer] *** CONSENSUS REACHED ({current_sig_count}/{required_signatures}) ***")
-            # --- FIX FOR TIMEOUT ---
-            # Run finalization in a thread so this function can return "OK"
-            # to the peer who sent the last signature.
             Thread(target=self.finalize_and_commit_block, args=(block_hash,)).start()
-            # --- END FIX ---
 
     def finalize_and_commit_block(self, block_hash):
         """
         (Proposer) Combines all signatures and broadcasts the final block.
         """
         
-        # --- FIX: Get block from proposal structure ---
+        # --- Get block from proposal structure ---
         if not self.current_proposal or self.current_proposal.get('block', {}).get('hash') != block_hash:
              print(f"[Proposer] !! Finalization Failed: Block {block_hash[:10]}... is no longer the current proposal.")
              return
              
         final_block = self.current_proposal['block']
-        # --- END FIX ---
         
         final_block['signatures'] = self.consensus_signatures[block_hash]
         
@@ -337,7 +319,7 @@ class Blockchain:
             print(f"[Peer] Block {block['index']} is already in the chain.")
             return
 
-        # Quick validation (not full, as we validated before)
+        # Quick validation 
         if block['previous_hash'] != self.chain[-1]['hash']:
             print(f"[Peer] !! Commit failed: Previous hash mismatch.")
             # Handle the case where we missed the proposal but got the commit
@@ -386,7 +368,7 @@ class Blockchain:
         print(f"[Peer] Final block {block['index']} added to local chain.")
         pprint(block)
 
-# --- Network Node Class (Combines Everything) ---
+# --- Network Node Class ---
 
 class HospitalNode:
     def __init__(self, node_id, port, bootstrap_domains=None):
@@ -401,7 +383,7 @@ class HospitalNode:
         self.lock = Lock()
         
         # Network Data
-        self.peer_registry = {} # On-Chain Registry (Slide 5)
+        self.peer_registry = {} # On-Chain Registry 
         self.peer_public_keys = {} # Public key cache
         
         # Load identity
@@ -426,7 +408,7 @@ class HospitalNode:
         with open(self.certs_dir / f"{self.node_id}.cert", "r") as f:
             return json.load(f)
 
-    # --- Protocol 1: OOB Handshake (Slide 3) ---
+    # --- Protocol 1: OOB Handshake ---
     def register_routes(self):
         self.app.add_url_rule("/handshake", "handshake", self.handle_handshake, methods=["POST"])
         self.app.add_url_rule("/add_registry", "add_registry", self.handle_add_registry, methods=["POST"])
@@ -473,8 +455,6 @@ class HospitalNode:
         
         # 3. Reply with OWN certificate
         
-        # --- FIX IS HERE ---
-        # We must also send our *entire* dictionary of known public keys
         with self.lock:
             public_keys_to_send = {
                 nid: crypto.serialize_public_key(key).decode('utf-8') 
@@ -485,15 +465,15 @@ class HospitalNode:
             "message": f"Handshake accepted by {self.node_id}",
             "certificate": self.certificate,
             "registry": self.peer_registry, # Send current registry
-            "public_keys": public_keys_to_send # <-- ADDED THIS LINE
+            "public_keys": public_keys_to_send
         }), 200
 
-    # --- Protocol 2: Peer Discovery (Slide 4, 5) ---
+    # --- Protocol 2: Peer Discovery ---
     
     def connect_to_bootstrap(self):
         """Contacts the bootstrap node(s) for OOB Handshake."""
         
-        # --- NEW: Iterate through bootstrap domains for HA ---
+        # --- Iterate through bootstrap domains for HA ---
         handshake_success = False
         bs_node_id = None # Store the ID of the node we sync with
         
@@ -537,7 +517,6 @@ class HospitalNode:
                     with self.lock:
                         self.peer_registry.update(data.get('registry', {}))
 
-                        # --- FIX IS HERE ---
                         # Load all public keys received from the bootstrap
                         received_keys = data.get('public_keys', {})
                         for node_id, pub_key_ssh in received_keys.items():
@@ -546,7 +525,6 @@ class HospitalNode:
                                 if node_id not in self.peer_public_keys:
                                     print(f"[Bootstrap] Learning key for {node_id} from bootstrap.")
                                     self.peer_public_keys[node_id] = crypto.load_public_key(pub_key_ssh.encode('utf-8'))
-                        # --- END OF FIX ---
 
                         # Add bootstrap to registry
                         if bs_node_id != self.node_id:
@@ -566,20 +544,15 @@ class HospitalNode:
         
         # After loop, check if we ever succeeded
         if handshake_success:
-            # --- NEW: PROACTIVE SYNC ---
+            # --- PROACTIVE SYNC ---
             # Now that we've connected, immediately sync our chain
-            # with the bootstrap node *before* we come online.
             print(f"--- Proactively syncing chain with {bs_node_id} ---")
-            # We call this synchronously (not in a thread)
             self.resolve_conflicts(bs_node_id) 
-            # --- END PROACTIVE SYNC ---
             
             # Now we can broadcast our registry entry
             self.broadcast_registry_entry()
         else:
             print("!! FATAL: Could not connect to any bootstrap nodes. Shutting down.")
-            # In a real app, you'd have retry logic
-            # For this simulation, we'll just stop the thread.
             return
 
     def broadcast_registry_entry(self):
@@ -633,7 +606,6 @@ class HospitalNode:
             print(f"[Gossip] Broadcasting new peer info for {node_id} to all other peers...")
             # We re-broadcast the *original message* (data, not payload)
             self.broadcast_to_peers("/add_registry", data, exclude_node_id=node_id)
-        # --- END NEW GOSSIP PROTOCOL ---
                 
         return jsonify({"message": "Registry accepted"}), 200
 
@@ -654,7 +626,7 @@ class HospitalNode:
             except requests.exceptions.RequestException:
                 print(f"!! Failed to send to peer {node_id} at {address}")
                 
-    # --- Function for Fork Resolution (TODO #2) ---
+    # --- Function for Fork Resolution ---
     def validate_full_chain(self, chain):
         """Validates an entire blockchain received from a peer."""
         print("[Fork] Validating incoming chain...")
@@ -678,8 +650,6 @@ class HospitalNode:
             if _hash != block['hash'] or _hash[:self.blockchain.difficulty] != '0' * self.blockchain.difficulty:
                 print(f"[Fork] !! Validation Failed: Invalid PoW at index {i}.")
                 return False
-            
-            # TODO: Check PoA signatures (this is already implemented in commit_block)
             
         print("[Fork] Incoming chain is valid.")
         return True
@@ -770,13 +740,13 @@ class HospitalNode:
         if not patient or not record_data:
             return jsonify({"error": "'patient' and 'data' fields are required"}), 400
         
-        # --- NEW: Check for timed-out proposals first ---
+        # --- Check for timed-out proposals first ---
         with self.lock:
             self.blockchain.check_for_failed_proposal()
             
         # Create transaction
         tx = {
-            "timestamp": int(time.time()), # <-- FIX: Use integer timestamp
+            "timestamp": int(time.time()), 
             "patient": patient,
             "data": record_data,
             "node_id": self.node_id
@@ -791,7 +761,7 @@ class HospitalNode:
         with self.lock:
             self.blockchain.pending_transactions.append(full_tx)
         
-        # --- NEW LOGIC: Automatically start mining ---
+        # --- Automatically start mining ---
         with self.lock:
             if not self.blockchain.pending_transactions:
                 return jsonify({"message": "No transactions to mine"}), 400 # Should not happen
@@ -809,7 +779,7 @@ class HospitalNode:
         return jsonify({"message": "Block proposal started"}), 202
         
     def run(self):
-        # --- MODIFICATION: Run connect_to_bootstrap *before* starting the server ---
+        # --- Run connect_to_bootstrap *before* starting the server ---
         if self.bootstrap_domains:
             # This is NOT a primary bootstrap node.
             # We must connect and sync *before* starting the server.
@@ -818,7 +788,7 @@ class HospitalNode:
         
         print("\n--- Node is online and ready. ---")
             
-        # FIX: Add threaded=True to prevent deadlocks
+        # Add threaded=True to prevent deadlocks
         self.app.run(port=self.port, host="0.0.0.0", threaded=True)
 
 # --- Main execution ---
