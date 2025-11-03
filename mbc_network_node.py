@@ -4,7 +4,7 @@ import mbc_crypto as crypto
 import json
 import time
 from pathlib import Path
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 import requests
 from threading import Thread, Lock
 
@@ -371,7 +371,16 @@ class HospitalNode:
     # --- External API ---
     
     def get_chain(self):
-        return jsonify(self.blockchain.chain), 200
+        """Renders the blockchain as an HTML page (for humans)."""
+        with self.lock:
+            # Get a copy of the chain to avoid issues during iteration
+            chain_data = list(self.blockchain.chain)
+
+        return render_template('blocks.html',
+                               blocks=chain_data,
+                               title=f"Blockchain for {self.node_id}",
+                               node_id=self.node_id,
+                               data=self.blockchain.chain)
         
     def get_peers(self):
         return jsonify(self.peer_registry), 200

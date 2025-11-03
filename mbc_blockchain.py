@@ -49,8 +49,21 @@ class Blockchain:
         block_copy = block.copy()
         block_copy.pop('hash', None)
         block_copy.pop('signatures', None) 
-        block_string = json.dumps(block_copy, sort_keys=True).encode('utf-8')
-        return hashlib.sha256(block_string).hexdigest()
+
+        # --- PoW Logic ---
+        i = 0
+        while True:
+            # proposed_block['nonce'] = i
+            block_copy['nonce'] = i
+            block_string = json.dumps(block_copy, sort_keys=True).encode('utf-8')
+            _hash = hashlib.sha256(block_string).hexdigest()
+
+            if _hash[:self.difficulty] == '0' * self.difficulty:
+                return _hash
+
+            i += 1
+            if i % 100000 == 0:
+                print(f"[Proposer] PoW... (trying nonce {i})")
 
     # --- Check for failed/timed-out proposals ---
     def check_for_failed_proposal(self):

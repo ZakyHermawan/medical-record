@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="5">
+    
+    <title>{{ title }}</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            padding: 2em;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+        h1, h2 { 
+            color: #005a9c;
+            border-bottom: 2px solid #ddd;
+            padding-bottom: 10px;
+        }
+        h1 { font-size: 2.5em; }
+        h2 { font-size: 1.5em; }
+
+        /* --- NEW Table Styles --- */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 2em;
+            font-size: 0.9em;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px 12px;
+            text-align: left;
+            word-wrap: break-word;
+        }
+        thead {
+            background-color: #007bff;
+            color: #ffffff;
+        }
+        tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tbody tr:hover {
+            background-color: #f1f1f1;
+        }
+        td code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+            background: #fdf6e3;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+        /* --- End Table Styles --- */
+
+        .chain-container {
+            display: flex;
+            flex-direction: column-reverse; /* Shows newest block on top */
+        }
+        .block {
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 1.5em;
+            margin-bottom: 1.5em;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            word-wrap: break-word;
+        }
+        .block h3 {
+            margin-top: 0;
+            color: #007bff;
+            font-size: 1.8em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .block h3 .proposer {
+            font-size: 0.7em;
+            font-weight: normal;
+            background: #e9ecef;
+            color: #495057;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+        .block-meta {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 1em;
+        }
+        .block-meta strong { color: #333; }
+        .hash {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+            font-size: 0.85em;
+            background: #fdf6e3;
+            padding: 1em;
+            border-radius: 4px;
+            border: 1px solid #eee8d5;
+            overflow-x: auto;
+        }
+        .hash-label {
+            font-weight: bold;
+            display: block;
+            margin-top: 1em;
+            margin-bottom: 0.5em;
+        }
+        pre {
+            background: #272822;
+            color: #f8f8f2;
+            padding: 1em;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Blockchain Visualizer</h1>
+    <h2>Node: <span style="color: #007bff;">{{ node_id }}</span></h2>
+    
+    <h2>Blockchain Summary</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Timestamp</th>
+                <th>Patient</th>
+                <th>Proposer</th>
+                <th>Txs</th>
+                <th>Sigs</th>
+                <th>Nonce</th>
+                <th>Hash (first 8)</th>
+                <th>Prev. Hash (first 8)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for block in blocks %}
+            <tr>
+                <td><strong>{{ block.index }}</strong></td>
+                <td>{{ block.timestamp }}</td>
+                <td>{{ block.patient }}</td>
+                <td>{{ block.proposer }}</td>
+                <td>{{ block.transactions | length }}</td>
+                <td>{{ block.signatures | length }}</td>
+                <td>{{ block.nonce }}</td>
+                <td><code>{{ block.hash[:8] }}...</code></td>
+                <td><code>{{ block.previous_hash[:8] }}...</code></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <h2>Detailed Chain View (Newest First)</h2>
+    <hr>
+    
+    <div class="chain-container">
+    {% for block in blocks %}
+        <div class="block">
+            <h3>
+                Block #{{ block.index }}
+                <span class="proposer">Proposer: {{ block.proposer }}</span>
+            </h3>
+            
+            <div class="block-meta">
+                <strong>Timestamp:</strong> {{ block.timestamp }} <br>
+                <strong>Patient:</strong> {{ block.patient }} <br>
+                <strong>Nonce:</strong> {{ block.nonce }}
+            </div>
+
+            <span class="hash-label">Previous Hash:</span>
+            <div class="hash">{{ block.previous_hash }}</div>
+            
+            <span class="hash-label">Block Hash:</span>
+            <div class="hash" style="background: #e6ffed; border-color: #b3f7c9;">{{ block.hash }}</div>
+            
+            <span class="hash-label">Transactions ({{ block.transactions | length }}):</span>
+            <pre>{{ block.transactions | tojson(indent=2) }}</pre>
+            
+            <span class="hash-label">Signatures ({{ block.signatures | length }}):</span>
+            <pre>{{ block.signatures | tojson(indent=2) }}</pre>
+        </div>
+    {% else %}
+        <p>No blocks in the chain yet.</p>
+    {% endfor %}
+    </div>
+
+</body>
+</html>

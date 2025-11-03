@@ -83,7 +83,7 @@ curl -X POST [http://127.0.0.1:5003/add_record](http://127.0.0.1:5003/add_record
 
 If you are on macOS or Linux (Bash):
 ```bash
-curl -X POST [http://127.0.0.1:5003/add_record](http://127.0.0.1:5003/add_record) -H 'Content-Type: application/json' -d '{"patient": "Alice", "data": "High Fever"}'
+curl -X POST http://127.0.0.1:5003/add_record -H 'Content-Type: application/json' -d '{"patient": "Alice", "data": "High Fever"}'
 ```
 * Expected Output (Watch all 5 node terminals):
 

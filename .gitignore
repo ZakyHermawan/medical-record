@@ -2,3 +2,5 @@
 *.pub
 __pycache__/
 venv/
+certs/
+
