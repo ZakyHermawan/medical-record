@@ -121,7 +121,7 @@ This test proves your Peer Discovery protocol works.
 2. Restart the Node on a NEW Port: Open a new, separate terminal and run the following command. This manually restarts RS-4 on port 5014:
 
 ```bash
-python mbc_node.py -i RS-4 -p 5014 -b bootstrap1.hospital.net -b bootstrap2.hospital.net
+python mbc_launcher.py -i RS-4 -p 5014 -b bootstrap1.hospital.net -b bootstrap2.hospital.net
 ```
 3. Observe Logs:
 
@@ -143,7 +143,7 @@ This is the ultimate test of the network's High-Availability and Fork Resolution
 2. Restart RS-4: In a new, separate terminal, restart RS-4 on its original port:
 
 ```bash
-python mbc_node.py -i RS-4 -p 5004 -b bootstrap1.hospital.net -b bootstrap2.hospital.net
+python mbc_launcher.py -i RS-4 -p 5004 -b bootstrap1.hospital.net -b bootstrap2.hospital.net
 ```
 
 3. Observe RS-4's Log: You will see the HA protocol in action:
