@@ -71,6 +71,7 @@ class HospitalNode:
     # --- Protocol 1: OOB Handshake ---
     def register_routes(self):
         self.app.add_url_rule("/", "show_home_page", self.show_home_page, methods=["GET"])
+        self.app.add_url_rule("/renew_chain", "renew_chain", self.renew_chain, methods=["GET"])
 
         self.app.add_url_rule("/handshake", "handshake", self.handle_handshake, methods=["POST"])
         self.app.add_url_rule("/add_registry", "add_registry", self.handle_add_registry, methods=["POST"])
@@ -90,6 +91,13 @@ class HospitalNode:
     def show_home_page(self):
         """Renders the HTML form to add a new record."""
         return render_template('index.html', node_id=self.node_id)
+    
+    def renew_chain(self):
+        """API Endpoint: Returns the entire chain as JSON."""
+        with self.lock:
+            # Make a copy for thread safety
+            chain_copy = list(self.blockchain.chain)
+        return jsonify(chain_copy), 200
 
     def handle_handshake(self):
         """Receives a handshake from a new node."""
@@ -336,7 +344,7 @@ class HospitalNode:
                 return
             
         try:
-            response = requests.get(f"{proposer_address}/chain", timeout=5)
+            response = requests.get(f"{proposer_address}/renew_chain", timeout=5)
             if response.status_code != 200:
                 print(f"[Fork] Failed to get chain from {proposer_node_id}.")
                 return
@@ -350,7 +358,7 @@ class HospitalNode:
                 else:
                     print("[Fork] Local chain is authoritative. Ignoring incoming chain.")
 
-        except requests.exceptions.RequestException as e:
+        except (requests.exceptions.RequestException, requests.exceptions.JSONDecodeError, json.JSONDecodeError) as e:
             print(f"[Fork] Error during conflict resolution: {e}")
 
     # --- Consensus Endpoints (PoW + PoA) ---
