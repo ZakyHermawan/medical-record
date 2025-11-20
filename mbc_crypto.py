@@ -23,7 +23,6 @@ def serialize_private_key(private_key):
 
 def serialize_public_key(public_key):
     """Changing public key menjadi OpenSSH."""
-    # Format ini sesuai dengan output di keygen.py
     return public_key.public_bytes(
         encoding=serialization.Encoding.OpenSSH,
         format=serialization.PublicFormat.OpenSSH
